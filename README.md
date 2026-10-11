@@ -1,6 +1,6 @@
 # Punchline
 
-A Next.js + Supabase joke app with Google OAuth, server-side route protection, user profiles, and profile-photo uploads.
+A Next.js + Supabase campus-humor app with Google OAuth, Gemini caption generation, authenticated ratings, user profiles, and strict row-level security.
 
 ## Local setup
 
@@ -9,6 +9,7 @@ A Next.js + Supabase joke app with Google OAuth, server-side route protection, u
 ```bash
 NEXT_PUBLIC_SUPABASE_URL=your-project-url
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your-publishable-key
+GEMINI_API_KEY=your-server-only-gemini-key
 ```
 
 2. Apply the SQL files in `supabase/migrations` in filename order using the Supabase SQL editor (or run `supabase db push` if the project is linked).
@@ -43,6 +44,11 @@ Open [http://localhost:3000](http://localhost:3000)
 - Cookie-backed SSR auth with automatic session refresh
 - Protected `/members` and `/profile` routes
 - First-login profile completion prompt and editable profile/photo UI
+- Protected `/create` studio backed by the Gemini API
+- Public AI-caption feed with stored prompts and model metadata
+- One immutable authenticated vote per user and generation
+- Vote totals maintained by a database trigger without exposing other users' vote rows
+- RLS enabled and forced on every public table
 
 ## Deployment checklist
 

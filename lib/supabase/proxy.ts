@@ -26,6 +26,7 @@ export async function updateSession(request: NextRequest) {
   const { data } = await supabase.auth.getClaims();
   const isProtectedRoute =
     request.nextUrl.pathname.startsWith("/members") ||
+    request.nextUrl.pathname.startsWith("/create") ||
     request.nextUrl.pathname.startsWith("/profile");
 
   if (!data?.claims && isProtectedRoute) {

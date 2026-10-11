@@ -12,17 +12,17 @@ export default function PrivacyPage() {
 
         <section className="space-y-3">
           <h2 className="text-xl font-bold text-white">Information we collect</h2>
-          <p>When you sign in with Google, Punchline receives your email address and basic Google profile information. You may also provide a first name, last name, and profile photo.</p>
+          <p>When you sign in with Google, Punchline receives your email address and basic Google profile information. You may also provide a first name, last name, and profile photo. We store the scenarios you submit for caption generation, the generated captions, and your votes.</p>
         </section>
 
         <section className="space-y-3">
           <h2 className="text-xl font-bold text-white">How we use and store information</h2>
-          <p>We use this information only to authenticate you, display your profile, and provide members-only features. Account and profile data are stored with Supabase. Profile photos are stored in Supabase Storage rather than in the relational database.</p>
+          <p>We use this information to authenticate you, display your profile, generate and publish captions, record ratings, and provide members-only features. Account, profile, generation, and rating data are stored with Supabase. Profile photos are stored in Supabase Storage rather than in the relational database.</p>
         </section>
 
         <section className="space-y-3">
           <h2 className="text-xl font-bold text-white">Sharing and retention</h2>
-          <p>We do not sell your personal information. Data is shared only with service providers needed to operate the app, including Google, Supabase, and Vercel. We retain it while your account is active or as needed to operate the service.</p>
+          <p>We do not sell your personal information. Your generation scenario is sent to Google Gemini to create a caption. Data is otherwise shared only with service providers needed to operate the app, including Google, Supabase, and Vercel. We retain it while your account is active or as needed to operate the service.</p>
         </section>
 
         <section className="space-y-3">

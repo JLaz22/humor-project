@@ -9,10 +9,11 @@ export function SiteHeader({ user }: { user: User | null }) {
           Punchline<span className="text-amber-400">.</span>
         </Link>
         <nav className="flex items-center gap-3 text-sm font-semibold text-zinc-300 sm:gap-5">
-          <Link href="/" className="hidden transition hover:text-white sm:block">Jokes</Link>
+          <Link href="/" className="hidden transition hover:text-white sm:block">Feed</Link>
           {user && (
             <>
-              <Link href="/members" className="transition hover:text-white">Members</Link>
+              <Link href="/create" className="transition hover:text-white">Create</Link>
+              <Link href="/members" className="hidden transition hover:text-white sm:block">Members</Link>
               <Link href="/profile" className="transition hover:text-white">Profile</Link>
               <form action="/auth/signout" method="post">
                 <button className="rounded-full border border-zinc-700 px-4 py-2 transition hover:border-zinc-500 hover:text-white">

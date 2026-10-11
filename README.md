@@ -1,36 +1,53 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Punchline
 
-## Getting Started
+A Next.js + Supabase joke app with Google OAuth, server-side route protection, user profiles, and profile-photo uploads.
 
-First, run the development server:
+## Local setup
+
+1. Create `.env.local` with:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+NEXT_PUBLIC_SUPABASE_URL=your-project-url
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your-publishable-key
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+2. Apply the SQL files in `supabase/migrations` in filename order using the Supabase SQL editor (or run `supabase db push` if the project is linked).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+3. In Google Cloud, create a Web OAuth client and add the Supabase callback URL shown under **Supabase → Authentication → Providers → Google** as an authorized redirect URI. Put the Google client ID and secret in that Supabase provider screen.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+4. In **Supabase → Authentication → URL Configuration**, set the Site URL to the deployed app and add both redirect URLs:
 
-## Learn More
+```text
+http://localhost:3000/auth/callback
+https://YOUR-VERCEL-DOMAIN/auth/callback
+```
 
-To learn more about Next.js, take a look at the following resources:
+The application intentionally passes `/auth/callback` without custom query parameters to `signInWithOAuth`.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+5. Start the app:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+npm install
+npm run dev
+```
 
-## Deploy on Vercel
+Open [http://localhost:3000](http://localhost:3000)
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## What is included
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `profiles` table keyed to `auth.users`, with nullable `first_name` and `last_name`
+- `auth.users` insert trigger plus a backfill for existing accounts
+- Row-level security so users can only access their own profile
+- Public `profile-photos` Storage bucket with size/type restrictions and owner-only writes
+- Google OAuth and `/auth/callback` PKCE code exchange
+- Cookie-backed SSR auth with automatic session refresh
+- Protected `/members` and `/profile` routes
+- First-login profile completion prompt and editable profile/photo UI
+
+## Deployment checklist
+
+- Add the two public Supabase environment variables to Vercel.
+- Turn off Vercel Deployment Protection so OAuth works in an incognito window.
+- Add the production `/auth/callback` URL to Supabase's redirect allow list.
+- Test Google sign-in, profile completion, photo upload, sign-out, and direct access to `/members` while signed out.
+- Submit Vercel's commit-specific deployment URL.

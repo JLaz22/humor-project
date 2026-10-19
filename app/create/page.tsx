@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import { CaptionForm } from "@/components/caption-form";
 import { createClient } from "@/lib/supabase/server";
 
+export const maxDuration = 60;
+
 const errorMessages: Record<string, string> = {
   prompt: "Give the generator a scenario between 3 and 280 characters.",
   style: "Choose one of the available styles.",
@@ -24,7 +26,7 @@ export default async function CreatePage({ searchParams }: { searchParams: Promi
           <Link href="/" className="quiet-link text-ink/50">← Back to the feed</Link>
           <p className="eyebrow mt-10 text-coral">The caption studio</p>
           <h1 className="mt-4 text-5xl font-black leading-[0.95] tracking-[-0.055em] sm:text-7xl">Your moment.<br />AI&apos;s punchline.</h1>
-          <p className="mt-6 max-w-2xl text-lg leading-8 text-ink/60">Drop in something painfully specific from campus or your weekend in New York. Gemini writes one caption; the community decides whether it hits.</p>
+          <p className="mt-6 max-w-2xl text-lg leading-8 text-ink/60">Tell us what happened. Add your own photo, let AI pick a matching one, or keep it caption only. Gemini brings the punchline; the crowd decides whether it hits.</p>
           {params.error && <p className="notice notice-error mt-7">{errorMessages[params.error] ?? "Something went wrong."}</p>}
           <div className="mt-9"><CaptionForm /></div>
         </div>

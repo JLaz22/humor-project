@@ -18,11 +18,18 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ a
   const supabase = await createClient();
   const [{ data: { user } }, params] = await Promise.all([supabase.auth.getUser(), searchParams]);
   const [{ data: generations, error }, { data: votes }] = await Promise.all([
-    supabase.from("generations").select("id, prompt, style, content, model, upvotes, downvotes, created_at").order("created_at", { ascending: false }).limit(50),
+    supabase.from("generations").select("*").order("created_at", { ascending: false }).limit(50),
     user ? supabase.from("votes").select("generation_id, value").eq("user_id", user.id) : Promise.resolve({ data: [] as Vote[] }),
   ]);
 
-  const feed = (generations ?? []) as FeedGeneration[];
+  // Only send public display fields to the client, never owner IDs or the
+  // internal generation prompt returned by the backwards-compatible query.
+  const feed: FeedGeneration[] = (generations ?? []).map((item) => ({
+    id: item.id, prompt: item.prompt, style: item.style, content: item.content,
+    model: item.model, upvotes: item.upvotes, downvotes: item.downvotes,
+    created_at: item.created_at, image_url: item.image_url, image_alt: item.image_alt,
+    image_source: item.image_source, image_credit_url: item.image_credit_url,
+  }));
   const myVotes = Object.fromEntries((votes as Vote[] | null)?.map((vote) => [vote.generation_id, vote.value]) ?? []);
   const totalVotes = feed.reduce((sum, item) => sum + item.upvotes + item.downvotes, 0);
   const topScore = feed.length ? Math.max(...feed.map((item) => item.upvotes - item.downvotes)) : 0;
@@ -62,7 +69,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ a
             <div className={`notice ${params.authError || params.voteError ? "notice-error" : "notice-success"}`} role="status">
               {params.authError && "Sign-in could not be completed. Please try again."}
               {params.voteError && (voteErrors[params.voteError] ?? "Something went wrong.")}
-              {params.created && "Your caption is live. Let the crowd judge it."}
+              {params.created && "Your creation is live. Let the crowd judge it."}
               {params.voted && "Vote counted. The leaderboard just moved."}
             </div>
           )}

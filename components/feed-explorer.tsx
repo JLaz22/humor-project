@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { submitVote } from "@/app/actions";
 import { VoteButtons } from "@/components/vote-buttons";
+import { MemeMedia } from "@/components/meme-media";
 
 export type FeedGeneration = {
   id: number;
@@ -13,6 +14,10 @@ export type FeedGeneration = {
   upvotes: number;
   downvotes: number;
   created_at: string;
+  image_url?: string | null;
+  image_alt?: string | null;
+  image_source?: "upload" | "ai-pick" | null;
+  image_credit_url?: string | null;
 };
 
 type Sort = "hot" | "new" | "top";
@@ -101,14 +106,17 @@ export function FeedExplorer({
                   <span className="font-mono text-xs font-bold text-ink/40">#{String(index + 1).padStart(2, "0")}</span>
                 </div>
 
-                <blockquote className="mt-8 flex-1 text-[1.65rem] font-black leading-[1.14] tracking-[-0.035em] sm:text-3xl">
+                {generation.image_url ? (
+                  <MemeMedia src={generation.image_url} alt={generation.image_alt ?? "Meme photo"} caption={generation.content} />
+                ) : <blockquote className="mt-8 flex-1 text-[1.65rem] font-black leading-[1.14] tracking-[-0.035em] sm:text-3xl">
                   {generation.content}
-                </blockquote>
+                </blockquote>}
 
                 <details className="prompt-details mt-7">
                   <summary>Behind the punchline</summary>
                   <p className="mt-3 leading-6 text-ink/65">{generation.prompt}</p>
                   <p className="mt-2 font-mono text-[10px] uppercase tracking-wider text-ink/35">Made with {generation.model}</p>
+                  {generation.image_source && <p className="mt-2 text-xs text-ink/50">{generation.image_source === "ai-pick" ? <>Photo matched by AI · <a href="https://unsplash.com" target="_blank" rel="noreferrer" className="underline">Photo from Unsplash</a></> : "Photo uploaded by the creator; caption written with AI."}</p>}
                 </details>
 
                 <div className="mt-6 flex flex-wrap items-center gap-3 border-t border-ink/10 pt-5">

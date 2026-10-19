@@ -1,18 +1,7 @@
 import Link from "next/link";
-import { submitVote } from "@/app/actions";
+import { FeedExplorer, type FeedGeneration } from "@/components/feed-explorer";
 import { GoogleSignIn } from "@/components/google-sign-in";
 import { createClient } from "@/lib/supabase/server";
-
-type Generation = {
-  id: number;
-  prompt: string;
-  style: string;
-  content: string;
-  model: string;
-  upvotes: number;
-  downvotes: number;
-  created_at: string;
-};
 
 type Vote = { generation_id: number; value: number };
 
@@ -25,119 +14,77 @@ const voteErrors: Record<string, string> = {
 
 export const dynamic = "force-dynamic";
 
-export default async function Home({
-  searchParams,
-}: {
-  searchParams: Promise<{ authError?: string; created?: string; voted?: string; voteError?: string }>;
-}) {
+export default async function Home({ searchParams }: { searchParams: Promise<{ authError?: string; created?: string; voted?: string; voteError?: string }> }) {
   const supabase = await createClient();
-  const [{ data: { user } }, params] = await Promise.all([
-    supabase.auth.getUser(),
-    searchParams,
-  ]);
-
+  const [{ data: { user } }, params] = await Promise.all([supabase.auth.getUser(), searchParams]);
   const [{ data: generations, error }, { data: votes }] = await Promise.all([
-    supabase
-      .from("generations")
-      .select("id, prompt, style, content, model, upvotes, downvotes, created_at")
-      .order("created_at", { ascending: false })
-      .limit(30),
-    user
-      ? supabase.from("votes").select("generation_id, value").eq("user_id", user.id)
-      : Promise.resolve({ data: [] as Vote[] }),
+    supabase.from("generations").select("id, prompt, style, content, model, upvotes, downvotes, created_at").order("created_at", { ascending: false }).limit(50),
+    user ? supabase.from("votes").select("generation_id, value").eq("user_id", user.id) : Promise.resolve({ data: [] as Vote[] }),
   ]);
 
-  const myVotes = new Map((votes as Vote[] | null)?.map((vote) => [vote.generation_id, vote.value]));
+  const feed = (generations ?? []) as FeedGeneration[];
+  const myVotes = Object.fromEntries((votes as Vote[] | null)?.map((vote) => [vote.generation_id, vote.value]) ?? []);
+  const totalVotes = feed.reduce((sum, item) => sum + item.upvotes + item.downvotes, 0);
+  const topScore = feed.length ? Math.max(...feed.map((item) => item.upvotes - item.downvotes)) : 0;
+  const today = new Date().toDateString();
+  const madeToday = feed.filter((item) => new Date(item.created_at).toDateString() === today).length;
 
   return (
-    <main className="px-6 py-14 sm:py-20">
-      <section className="mx-auto max-w-5xl">
-        <div className="grid items-end gap-8 lg:grid-cols-[1fr_auto]">
+    <main>
+      <section className="hero-shell">
+        <div className="hero-orbit orbit-one" />
+        <div className="hero-orbit orbit-two" />
+        <div className="relative mx-auto grid max-w-6xl items-center gap-12 px-5 py-16 sm:px-8 sm:py-24 lg:grid-cols-[1fr_0.72fr] lg:py-28">
           <div>
-            <p className="mb-3 text-sm font-semibold uppercase tracking-[0.25em] text-amber-400">The campus group chat, curated</p>
-            <h1 className="max-w-4xl text-5xl font-black tracking-tight sm:text-7xl">
-              New York happened. <span className="text-amber-400">Gemini captioned it.</span>
+            <div className="hero-kicker"><span className="live-dot" /> Live from New York</div>
+            <h1 className="mt-7 max-w-4xl text-[3.6rem] font-black leading-[0.91] tracking-[-0.065em] text-cream sm:text-7xl lg:text-[5.7rem]">
+              The city sets it up.<br /><span className="text-lime">AI lands the line.</span>
             </h1>
-            <p className="mt-6 max-w-2xl text-lg leading-8 text-zinc-400">
-              Fresh AI punchlines from Columbia students&apos; city moments. Vote on what hits and quietly bury what doesn&apos;t.
+            <p className="mt-7 max-w-2xl text-lg leading-8 text-cream/65 sm:text-xl">
+              Turn the oddly specific moments that happen around Columbia and NYC into AI captions. Then let the crowd decide what actually hits.
             </p>
+            <div className="mt-9 flex flex-wrap items-center gap-4">
+              {user ? <Link href="/create" className="primary-cta">Make a punchline <span>→</span></Link> : <div id="join"><GoogleSignIn /></div>}
+              <a href="#feed" className="quiet-link text-cream/65">See what&apos;s winning ↓</a>
+            </div>
           </div>
-          <div className="lg:pb-2">
-            {user ? (
-              <Link href="/create" className="inline-flex rounded-full bg-amber-400 px-6 py-3 font-bold text-zinc-950 transition hover:bg-amber-300">
-                Make a caption →
-              </Link>
-            ) : (
-              <GoogleSignIn />
-            )}
+          <div className="hero-card" aria-label="Example AI caption">
+            <div className="flex items-center justify-between"><span className="hero-card-label">Featured energy</span><span className="text-xl" aria-hidden>🍎</span></div>
+            <p className="mt-12 text-3xl font-black leading-tight tracking-[-0.04em] sm:text-4xl">&ldquo;The MTA said character development, but I had a 9 a.m.&rdquo;</p>
+            <div className="mt-10 flex items-center justify-between border-t border-ink/15 pt-5 text-sm font-bold"><span>DEADPAN</span><span className="text-teal">↑ Crowd approved</span></div>
           </div>
         </div>
+      </section>
 
-        {(params.authError || params.voteError || params.created || params.voted) && (
-          <div className="mt-8">
-            {params.authError && <p className="rounded-xl border border-red-900 bg-red-950/40 p-4 text-red-200">Sign-in could not be completed.</p>}
-            {params.voteError && <p className="rounded-xl border border-red-900 bg-red-950/40 p-4 text-red-200">{voteErrors[params.voteError] ?? "Something went wrong."}</p>}
-            {params.created && <p className="rounded-xl border border-emerald-800 bg-emerald-950/40 p-4 text-emerald-200">Your caption is live. Let the group chat judge it.</p>}
-            {params.voted && <p className="rounded-xl border border-emerald-800 bg-emerald-950/40 p-4 text-emerald-200">Rating counted.</p>}
+      <section className="bg-cream px-5 py-12 text-ink sm:px-8 sm:py-16" id="feed">
+        <div className="mx-auto max-w-6xl">
+          {(params.authError || params.voteError || params.created || params.voted) && (
+            <div className={`notice ${params.authError || params.voteError ? "notice-error" : "notice-success"}`} role="status">
+              {params.authError && "Sign-in could not be completed. Please try again."}
+              {params.voteError && (voteErrors[params.voteError] ?? "Something went wrong.")}
+              {params.created && "Your caption is live. Let the crowd judge it."}
+              {params.voted && "Vote counted. The leaderboard just moved."}
+            </div>
+          )}
+          <div className="stats-strip">
+            <div><strong>{feed.length}</strong><span>punchlines live</span></div>
+            <div><strong>{totalVotes}</strong><span>honest votes</span></div>
+            <div><strong>{madeToday}</strong><span>made today</span></div>
+            <div><strong>{topScore > 0 ? `+${topScore}` : topScore}</strong><span>top crowd score</span></div>
           </div>
-        )}
-
-        <div className="mt-14 flex items-center justify-between border-b border-zinc-800 pb-4">
-          <div>
-            <p className="text-xs font-black uppercase tracking-[0.25em] text-zinc-500">Live feed</p>
-            <h2 className="mt-1 text-2xl font-black">Newest city moments</h2>
-          </div>
-          <p className="text-sm text-zinc-500">One vote per person</p>
+          {error ? (
+            <div className="empty-card mt-10 text-coral">The feed took a wrong train. Refresh and try again.</div>
+          ) : !feed.length ? (
+            <div className="empty-card mt-10 text-center"><p className="text-2xl font-black">The feed is suspiciously quiet.</p><p className="mt-2 text-ink/55">Sign in and give the city its first line.</p></div>
+          ) : <FeedExplorer generations={feed} signedIn={Boolean(user)} votes={myVotes} />}
         </div>
+      </section>
 
-        {error ? (
-          <div className="mt-8 rounded-2xl border border-red-900 bg-red-950/40 p-6 text-red-200">The feed could not be loaded.</div>
-        ) : !generations?.length ? (
-          <div className="mt-8 rounded-3xl border border-dashed border-zinc-700 p-10 text-center">
-            <p className="text-2xl font-black">The feed is suspiciously quiet.</p>
-            <p className="mt-2 text-zinc-400">Sign in and give Gemini its first New York moment.</p>
-          </div>
-        ) : (
-          <ol className="mt-8 space-y-6">
-            {(generations as Generation[]).map((generation, index) => {
-              const myVote = myVotes.get(generation.id);
-              const score = generation.upvotes - generation.downvotes;
-              return (
-                <li id={`generation-${generation.id}`} key={generation.id} className="scroll-mt-24 rounded-3xl border border-zinc-800 bg-zinc-900 p-6 shadow-xl sm:p-8">
-                  <div className="flex flex-wrap items-center justify-between gap-3 text-xs font-bold uppercase tracking-[0.18em] text-zinc-500">
-                    <span>#{String(index + 1).padStart(2, "0")} · {generation.style}</span>
-                    <time dateTime={generation.created_at}>{new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" }).format(new Date(generation.created_at))}</time>
-                  </div>
-                  <blockquote className="mt-6 text-2xl font-black leading-snug text-white sm:text-3xl">“{generation.content}”</blockquote>
-                  <details className="mt-5 text-sm text-zinc-500">
-                    <summary className="cursor-pointer transition hover:text-zinc-300">See the human prompt</summary>
-                    <p className="mt-2 border-l-2 border-zinc-700 pl-3">{generation.prompt}</p>
-                    <p className="mt-2 text-xs">Generated with {generation.model}</p>
-                  </details>
-                  <div className="mt-7 flex flex-wrap items-center gap-3 border-t border-zinc-800 pt-5">
-                    <div className="mr-auto flex items-center gap-3 text-sm font-bold">
-                      <span className={score >= 0 ? "text-emerald-300" : "text-red-300"}>{score > 0 ? "+" : ""}{score} score</span>
-                      <span className="text-zinc-600">{generation.upvotes + generation.downvotes} ratings</span>
-                    </div>
-                    {user ? (
-                      myVote ? (
-                        <span className="rounded-full border border-zinc-700 px-4 py-2 text-sm text-zinc-300">You said {myVote === 1 ? "it hits 🔥" : "not it 🫠"}</span>
-                      ) : (
-                        <form action={submitVote} className="flex gap-2">
-                          <input type="hidden" name="generationId" value={generation.id} />
-                          <button name="value" value="1" className="rounded-full border border-emerald-700 px-4 py-2 text-sm font-bold text-emerald-300 transition hover:bg-emerald-950">Hits 🔥</button>
-                          <button name="value" value="-1" className="rounded-full border border-red-900 px-4 py-2 text-sm font-bold text-red-300 transition hover:bg-red-950">Not it 🫠</button>
-                        </form>
-                      )
-                    ) : (
-                      <span className="text-sm text-zinc-500">Sign in to rate</span>
-                    )}
-                  </div>
-                </li>
-              );
-            })}
-          </ol>
-        )}
+      <section className="bg-lime px-5 py-16 text-ink sm:px-8 sm:py-20">
+        <div className="mx-auto flex max-w-6xl flex-col items-start justify-between gap-8 md:flex-row md:items-end">
+          <div><p className="eyebrow">Your turn</p><h2 className="mt-3 max-w-3xl text-4xl font-black leading-none tracking-[-0.05em] sm:text-6xl">Something weird happened today. Don&apos;t waste it.</h2></div>
+          {user ? <Link href="/create" className="dark-cta">Open the studio →</Link> : <div id="join-bottom"><GoogleSignIn /></div>}
+        </div>
       </section>
     </main>
   );

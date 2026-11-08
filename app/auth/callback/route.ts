@@ -10,6 +10,12 @@ export async function GET(request: Request) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
 
     if (!error) {
+      const { data: { user } } = await supabase.auth.getUser();
+      const { data: allowed } = await supabase.rpc("signup_email_allowed", { candidate: user?.email ?? "" });
+      if (!allowed) {
+        await supabase.auth.signOut();
+        return NextResponse.redirect(`${origin}/?authError=not-allowed`);
+      }
       return NextResponse.redirect(`${origin}/profile`);
     }
   }

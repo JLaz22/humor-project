@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { FeedExplorer, type FeedGeneration } from "@/components/feed-explorer";
 import { GoogleSignIn } from "@/components/google-sign-in";
 import { createClient } from "@/lib/supabase/server";
@@ -15,6 +16,8 @@ const voteErrors: Record<string, string> = {
 export const dynamic = "force-dynamic";
 
 export default async function Home({ searchParams }: { searchParams: Promise<{ authError?: string; created?: string; voted?: string; voteError?: string }> }) {
+  if (process.env.APP_MODE === "admin") redirect("/admin");
+  if (process.env.APP_MODE === "chains") redirect("/chains");
   const supabase = await createClient();
   const [{ data: { user } }, params] = await Promise.all([supabase.auth.getUser(), searchParams]);
   const [{ data: generations, error }, { data: votes }] = await Promise.all([

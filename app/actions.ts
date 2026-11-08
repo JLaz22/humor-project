@@ -61,6 +61,13 @@ export async function generateCaption(_previous: GenerationState, formData: Form
   const userPrompt = `Scenario: ${prompt}\nStyle: ${style}\nPhoto mode: ${imageMode}${photoLibrary}`;
   let result: { caption?: unknown; imageAlt?: unknown; photoIds?: unknown };
 
+  const { data: request, error: requestError } = await supabase.from("generation_requests").insert({ input: prompt, user_id: user.id }).select("id").single();
+  if (requestError || !request) return { error: "Generation tracking is unavailable. Please try again later." };
+  const started = Date.now();
+  async function fail(message: string) {
+    await supabase.from("generation_requests").update({status:"failed",error:message,completed_at:new Date().toISOString()}).eq("id",request!.id);
+    return {error:message};
+  }
   try {
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`,
@@ -95,23 +102,25 @@ export async function generateCaption(_previous: GenerationState, formData: Form
         signal: AbortSignal.timeout(45_000),
       },
     );
-    if (!response.ok) return { error: "The AI service is busy. Try again in a moment; your scene and photo are still here." };
+    if (!response.ok) return fail("The AI service is busy. Try again in a moment; your scene and photo are still here.");
     const data = await response.json() as GeminiResponse;
     const text = data.candidates?.[0]?.content?.parts?.map((part) => part.text ?? "").join("") ?? "";
+    const {error: logError}=await supabase.from("llm_responses").insert({request_id:request.id,model:GEMINI_MODEL,prompt:`${SYSTEM_PROMPT}\n\n${userPrompt}`,response:text,duration_ms:Date.now()-started});
+    if(logError) return fail("Could not record the model response. Please retry.");
     result = JSON.parse(text);
-    if (!result || typeof result !== "object") return { error: "The AI could not create a usable caption. Try a different scene." };
+    if (!result || typeof result !== "object") return fail("The AI could not create a usable caption. Try a different scene.");
   } catch {
-    return { error: "The AI could not finish this time. Try again; your scene and photo are still here." };
+    return fail("The AI could not finish this time. Try again; your scene and photo are still here.");
   }
 
   const caption = typeof result.caption === "string" ? cleanCaption(result.caption) : "";
-  if (!caption) return { error: "That scene did not produce a usable caption. Try a different angle." };
+  if (!caption) return fail("That scene did not produce a usable caption. Try a different angle.");
 
   let uploadedPath: string | undefined;
   let image: { image_url: string; image_alt: string; image_source: string; image_credit_url: string | null } | undefined;
   if (imageMode === "ai-pick") {
     const photo = pickMatchingPhoto(result.photoIds);
-    if (!photo) return { error: "AI couldn't find a strong photo match in the library. Try a different scene, upload your own photo, or choose caption only." };
+    if (!photo) return fail("AI couldn't find a strong photo match in the library. Try a different scene, upload your own photo, or choose caption only.");
     image = {
       image_url: memePhotoUrl(photo),
       image_alt: photo.description,
@@ -122,7 +131,7 @@ export async function generateCaption(_previous: GenerationState, formData: Form
     const extension = photoType === "image/jpeg" ? "jpg" : photoType === "image/png" ? "png" : "webp";
     uploadedPath = `${user.id}/${crypto.randomUUID()}.${extension}`;
     const { error: uploadError } = await supabase.storage.from("meme-photos").upload(uploadedPath, photoBytes, { contentType: photoType, upsert: false });
-    if (uploadError) return { error: "Your photo could not be uploaded. Please try again; your scene is still here." };
+    if (uploadError) return fail("Your photo could not be uploaded. Please try again; your scene is still here.");
     image = {
       image_url: supabase.storage.from("meme-photos").getPublicUrl(uploadedPath).data.publicUrl,
       image_alt: typeof result.imageAlt === "string" && result.imageAlt.trim() ? result.imageAlt.trim().slice(0, 300) : "Photo uploaded by the meme creator",
@@ -147,8 +156,10 @@ export async function generateCaption(_previous: GenerationState, formData: Form
 
   if (error || !generation) {
     if (uploadedPath) await supabase.storage.from("meme-photos").remove([uploadedPath]);
-    return { error: "Your meme could not be published. Try again; your scene and photo are still here." };
+    return fail("Your meme could not be published. Try again; your scene and photo are still here.");
   }
+  const {error:finishError}=await supabase.from("generation_requests").update({status:"succeeded",completed_at:new Date().toISOString()}).eq("id",request.id);
+  if(finishError) return {error:"Your meme was published, but request tracking could not finish. Check the feed before generating again."};
   revalidatePath("/");
   redirect(`/?created=${generation.id}#generation-${generation.id}`);
 }
